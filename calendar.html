@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>商品部-排假系統</title>
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --leave-color: #ff7675;
+            --weekend-color: #f1f2f6; /* 週末顏色 */
+            --holiday-color: #d1f7e0; /* 國定假日顏色 (淺綠) */
+            --bg-color: #ffffff;
+            --text-color: #2d3436;
+            --border-color: #dfe6e9;
+            --secondary-color: #636e72;
+            --highlight-color: #ffeaa7; /* 淺黃色用於標記自己 */
+            --today-border-color: #e17055; /* 今天的標記顏色 (深橘紅) */
+        }
+
+        body {
+            font-family: "Microsoft JhengHei", Arial, sans-serif;
+            background-color: #f5f6fa;
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+        }
+
+        .container {
+            background: var(--bg-color);
+            width: 100%;
+            max-width: 900px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            overflow: hidden;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        /* --- 人員管理區塊 --- */
+        .user-management {
+            background: #e7e9ed;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            max-width: 900px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .user-list-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .user-tag {
+            background: #fff;
+            padding: 5px 10px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        
+        .user-tag.active {
+            background: var(--highlight-color);
+            box-shadow: 0 0 5px rgba(255, 175, 50, 0.5);
+            font-weight: bold;
+        }
+
+        .user-tag button {
+            background: none;
+            border: none;
+            color: var(--leave-color);
+            font-weight: bold;
+            margin-left: 8px;
+            cursor: pointer;
+        }
+
+        .add-user-controls input {
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            margin-right: 10px;
+            width: 200px;
+        }
+        
+        .add-user-controls button {
+            padding: 8px 15px;
+            background: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        /* --- 行事曆區塊 --- */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        h1 { margin: 0; font-size: 1.5rem; }
+
+        .header-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .nav-btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.2s;
+        }
+
+        .nav-btn:hover { background: #357abd; }
+
+        /* 今天按鈕的特別樣式 */
+        .btn-today {
+            background-color: var(--secondary-color);
+        }
+        .btn-today:hover { background-color: #2d3436; }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+        }
+        
+        .status-bar .info-box {
+            font-weight: bold;
+        }
+
+        /* Calendar Grid */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background: var(--border-color);
+            border: 1px solid var(--border-color);
+        }
+
+        .day-name {
+            background: var(--primary-color);
+            color: white;
+            padding: 10px 0;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .day-cell {
+            background: var(--bg-color);
+            min-height: 120px;
+            padding: 5px;
+            cursor: pointer;
+            position: relative;
+            transition: background 0.1s;
+        }
+
+        .day-cell:hover { background-color: #f0f8ff; }
+
+        /* 今天的特別樣式 (紅框) */
+        .day-cell.is-today {
+            border: 2px solid var(--today-border-color) !important;
+            z-index: 1; /* 確保邊框浮在上方 */
+        }
+
+        .day-number {
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 5px;
+            pointer-events: none;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .holiday-name {
+            font-size: 0.75rem;
+            color: #27ae60;
+            font-weight: normal;
+        }
+
+        /* 標記：週末底色 */
+        .day-cell.is-weekend {
+            background-color: var(--weekend-color) !important;
+        }
+        
+        /* 標記：國定假日底色 */
+        .day-cell.is-holiday {
+            background-color: var(--holiday-color) !important;
+        }
+
+        /* Leave Styling */
+        .leave-names {
+            font-size: 0.8rem;
+            line-height: 1.3;
+            max-height: 80px; 
+            overflow-y: auto; 
+        }
+        
+        .leave-tag {
+            display: inline-block;
+            background: var(--leave-color);
+            color: white;
+            padding: 2px 5px;
+            border-radius: 3px;
+            margin: 2px 0;
+            white-space: nowrap;
+        }
+        
+        .leave-tag.my-leave {
+            background: #ffc048;
+        }
+
+        .day-cell.empty {
+            background: #fafafa;
+            cursor: default;
+        }
+        
+        .controls {
+            margin-top: 20px;
+            text-align: right;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .btn-reset {
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="user-management">
+        <h2>人員名單</h2>
+        <p>點擊下方人員名稱來切換自己的名字進行排假。點擊 <span style="color:var(--leave-color);">X</span> 刪除人員。</p>
+        <div class="user-list-container" id="userListContainer">
+            </div>
+
+        <div class="add-user-controls">
+            <input type="text" id="newUserName" placeholder="輸入新人員名稱">
+            <button onclick="addNewUser()">新增人員</button>
+            <button class="btn-reset" onclick="resetAllData()" style="background-color: #d63031;">清除所有資料</button>
+        </div>
+        <hr style="margin: 15px 0; border: 0; border-top: 1px solid #ccc;">
+        <p>當前人員：<span id="currentUserNameDisplay" style="color: var(--primary-color); font-weight: bold;">請選擇人員</span></p>
+    </div>
+
+    <div class="container">
+        <header>
+            <div class="header-controls">
+                <button class="nav-btn btn-today" id="todayBtn">今天</button>
+                <button class="nav-btn" id="prevMonth">&lt; 上個月</button>
+            </div>
+            
+            <h1 id="monthDisplay">載入中...</h1>
+            
+            <button class="nav-btn" id="nextMonth">下個月 &gt;</button>
+        </header>
+
+        <div class="status-bar">
+            <div class="info-box">
+                總排假天數：<span id="totalLeaveCount" style="color: var(--leave-color);">0</span> (本月)
+            </div>
+            <div class="info-box">
+                我的排假：<span id="myLeaveCount" style="color: #ffc048;">0</span> (本月)
+            </div>
+            <div class="info-box">
+                排假總人數：<span id="totalPeopleCount">0</span>
+            </div>
+        </div>
+
+        <div class="calendar-grid" id="calendar">
+            </div>
+
+        <div class="controls">
+            <div style="color: var(--primary-color); font-size: 0.9rem;">**提示**：點擊日期進行排假/銷假 (假日無法排假)。</div>
+            <button class="btn-reset" onclick="clearMyMonthData()">清除本月排假</button>
+        </div>
+    </div>
+
+    <script>
+        // === 1. 核心資料與設定 ===
+        let nav = 0; // 月份偏移量 (0 代表本月)
+        let AppData = {
+            users: [],
+            leaveData: {}
+        };
+        let currentUser = null; 
+        const DATA_STORAGE_KEY = 'multiUserLeaveScheduleData';
+
+        // 假日快取
+        let holidayCache = {}; 
+
+        // === 2. API 與工具函式 ===
+        
+        async function fetchHolidays(year) {
+            if (holidayCache[year]) {
+                return holidayCache[year];
+            }
+
+            const apiUrl = `https://cdn.jsdelivr.net/gh/ruyut/TaiwanCalendar/data/${year}.json`;
+            console.log(`正在抓取 ${year} 年的假日資料: ${apiUrl}`);
+
+            try {
+                const response = await fetch(apiUrl);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                
+                const holidayMap = {};
+                data.forEach(item => {
+                    if (item.isHoliday) {
+                        const name = item.description || item.name || "休假";
+                        let dateStr = item.date;
+                        if(dateStr.length === 8 && !dateStr.includes('-')) {
+                            dateStr = `${dateStr.substring(0,4)}-${dateStr.substring(4,6)}-${dateStr.substring(6,8)}`;
+                        }
+                        holidayMap[dateStr] = name;
+                    }
+                });
+
+                holidayCache[year] = holidayMap;
+                return holidayMap;
+
+            } catch (error) {
+                console.error("抓取假日資料失敗:", error);
+                // 失敗時不跳 alert 避免干擾，但 console 會顯示
+                holidayCache[year] = {}; 
+                return {};
+            }
+        }
+
+        function getHolidayInfo(dateStr, holidayMap) {
+            if (holidayMap && holidayMap[dateStr]) {
+                return { isHoliday: true, type: 'national', name: holidayMap[dateStr] };
+            }
+
+            const date = new Date(dateStr);
+            const dayOfWeek = date.getDay(); // 0=週日, 6=週六
+            if (dayOfWeek === 0 || dayOfWeek === 6) {
+                return { isHoliday: true, type: 'weekend', name: '' };
+            }
+
+            return { isHoliday: false };
+        }
+
+        // === 3. DOM 元素與初始化 ===
+        const calendar = document.getElementById('calendar');
+        const monthDisplay = document.getElementById('monthDisplay');
+        const totalLeaveCountSpan = document.getElementById('totalLeaveCount');
+        const myLeaveCountSpan = document.getElementById('myLeaveCount');
+        const totalPeopleCountSpan = document.getElementById('totalPeopleCount');
+        const currentUserNameDisplay = document.getElementById('currentUserNameDisplay');
+        const userListContainer = document.getElementById('userListContainer');
+        const newUserNameInput = document.getElementById('newUserName');
+        const weekDays = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+
+        function loadData() {
+            const stored = localStorage.getItem(DATA_STORAGE_KEY);
+            if (stored) {
+                AppData = JSON.parse(stored);
+            } else {
+                AppData.users = [
+                    { id: 'u1', name: '蔡依君' },
+                    { id: 'u2', name: '陳品溱' }
+                ];
+                AppData.users.forEach(u => AppData.leaveData[u.id] = []);
+            }
+            if (AppData.users.length > 0) {
+                switchUser(AppData.users[0].id);
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify(AppData));
+            updateStatistics();
+            renderUserTags();
+        }
+
+        // === 4. 核心邏輯：載入行事曆 ===
+        async function loadCalendar() {
+            const dt = new Date(); // 這是今天的時間物件
+            const today = new Date(); // 保存另一個「今天」的參照，用於比對
+            
+            if (nav !== 0) {
+                dt.setMonth(new Date().getMonth() + nav);
+            }
+
+            const year = dt.getFullYear();
+            const month = dt.getMonth();
+            const firstDayOfMonth = new Date(year, month, 1);
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            monthDisplay.innerText = `${year}年 ${month + 1}月 (更新假日中...)`;
+
+            const holidayMap = await fetchHolidays(year);
+
+            monthDisplay.innerText = `${year}年 ${month + 1}月`;
+            calendar.innerHTML = '';
+
+            // 繪製週標題
+            weekDays.forEach(day => {
+                const dayHeader = document.createElement('div');
+                dayHeader.classList.add('day-name');
+                dayHeader.innerText = day;
+                calendar.appendChild(dayHeader);
+            });
+
+            // 繪製前面的空白
+            const paddingDays = firstDayOfMonth.getDay();
+            for(let i = 0; i < paddingDays; i++) {
+                const paddingSquare = document.createElement('div');
+                paddingSquare.classList.add('day-cell', 'empty');
+                calendar.appendChild(paddingSquare);
+            }
+            
+            // 繪製日期格子
+            for(let i = 1; i <= daysInMonth; i++) {
+                const daySquare = document.createElement('div');
+                daySquare.classList.add('day-cell');
+                
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                
+                // 檢查是否為「今天」
+                if (i === today.getDate() && year === today.getFullYear() && month === today.getMonth()) {
+                    daySquare.classList.add('is-today');
+                }
+
+                // 判斷假日
+                const holidayInfo = getHolidayInfo(dateStr, holidayMap);
+                
+                if (holidayInfo.isHoliday) {
+                    if (holidayInfo.type === 'national') {
+                        daySquare.classList.add('is-holiday'); 
+                    } else {
+                        daySquare.classList.add('is-weekend');
+                    }
+                }
+
+                const dayNumberDiv = document.createElement('div');
+                dayNumberDiv.classList.add('day-number');
+                
+                const numSpan = document.createElement('span');
+                numSpan.innerText = i;
+                dayNumberDiv.appendChild(numSpan);
+
+                if (holidayInfo.type === 'national') {
+                    const nameSpan = document.createElement('span');
+                    nameSpan.classList.add('holiday-name');
+                    nameSpan.innerText = holidayInfo.name;
+                    dayNumberDiv.appendChild(nameSpan);
+                }
+
+                daySquare.appendChild(dayNumberDiv);
+
+                // 顯示排假
+                const leaveNamesDiv = document.createElement('div');
+                leaveNamesDiv.classList.add('leave-names');
+                
+                AppData.users.forEach(user => {
+                    const leaves = AppData.leaveData[user.id] || [];
+                    if (leaves.includes(dateStr)) {
+                        const tag = document.createElement('span');
+                        tag.classList.add('leave-tag');
+                        tag.innerText = user.name;
+                        if (currentUser && currentUser.id === user.id) {
+                            tag.classList.add('my-leave');
+                        }
+                        leaveNamesDiv.appendChild(tag);
+                    }
+                });
+                
+                daySquare.appendChild(leaveNamesDiv);
+
+                // 點擊事件
+                daySquare.addEventListener('click', () => {
+                    if (!currentUser) {
+                        alert('請先在上方選擇一位操作者！');
+                        return;
+                    }
+                    
+                    if (holidayInfo.isHoliday) {
+                        const reason = holidayInfo.type === 'national' ? holidayInfo.name : '週末';
+                        alert(`❌ 無法排假：這一天是 ${reason}`);
+                        return;
+                    }
+
+                    const leaves = AppData.leaveData[currentUser.id] || [];
+                    if (leaves.includes(dateStr)) {
+                        AppData.leaveData[currentUser.id] = leaves.filter(d => d !== dateStr);
+                    } else {
+                        leaves.push(dateStr);
+                        AppData.leaveData[currentUser.id] = leaves;
+                    }
+                    saveData();
+                    loadCalendar(); 
+                });
+
+                calendar.appendChild(daySquare);
+            }
+            
+            updateStatistics();
+        }
+
+        // === 5. 其他功能函式 ===
+
+        function generateUniqueId() {
+            return 'u' + Date.now();
+        }
+
+        function addNewUser() {
+            const name = newUserNameInput.value.trim();
+            if (name && AppData.users.every(u => u.name !== name)) {
+                const newUser = { id: generateUniqueId(), name: name };
+                AppData.users.push(newUser);
+                AppData.leaveData[newUser.id] = [];
+                newUserNameInput.value = '';
+                saveData();
+                switchUser(newUser.id);
+            } else if (AppData.users.some(u => u.name === name)) {
+                alert('人員名稱不能重複！');
+            }
+        }
+
+        function deleteUser(userId) {
+            if (confirm('確定要刪除此人員及其排假紀錄嗎？')) {
+                AppData.users = AppData.users.filter(u => u.id !== userId);
+                delete AppData.leaveData[userId];
+                if (currentUser && currentUser.id === userId) currentUser = null;
+                if (!currentUser && AppData.users.length > 0) currentUser = AppData.users[0];
+                saveData();
+                loadCalendar(); 
+            }
+        }
+
+        function switchUser(userId) {
+            const user = AppData.users.find(u => u.id === userId);
+            if (user) {
+                currentUser = user;
+                renderUserTags();
+                updateCurrentUserNameDisplay();
+                loadCalendar();
+            }
+        }
+
+        function renderUserTags() {
+            userListContainer.innerHTML = '';
+            totalPeopleCountSpan.innerText = AppData.users.length;
+            
+            AppData.users.forEach(user => {
+                const tag = document.createElement('div');
+                tag.classList.add('user-tag');
+                if (currentUser && currentUser.id === user.id) tag.classList.add('active');
+                
+                tag.innerHTML = `<span>${user.name}</span><button onclick="event.stopPropagation(); deleteUser('${user.id}')">X</button>`;
+                tag.addEventListener('click', () => switchUser(user.id));
+                userListContainer.appendChild(tag);
+            });
+        }
+
+        function updateCurrentUserNameDisplay() {
+            currentUserNameDisplay.innerText = currentUser ? currentUser.name : '請選擇人員';
+        }
+
+        function getCurrentMonthPrefix(dt) {
+            const month = dt.getMonth() + 1;
+            const year = dt.getFullYear();
+            return `${year}-${String(month).padStart(2, '0')}`;
+        }
+
+        function updateStatistics() {
+            const dt = new Date();
+            if (nav !== 0) dt.setMonth(new Date().getMonth() + nav);
+            const prefix = getCurrentMonthPrefix(dt);
+            
+            let totalLeave = 0;
+            let myLeave = 0;
+            
+            AppData.users.forEach(user => {
+                const leaves = AppData.leaveData[user.id] || [];
+                const monthLeaves = leaves.filter(d => d.startsWith(prefix));
+                totalLeave += monthLeaves.length;
+                if (currentUser && user.id === currentUser.id) {
+                    myLeave = monthLeaves.length;
+                }
+            });
+
+            totalLeaveCountSpan.innerText = totalLeave;
+            myLeaveCountSpan.innerText = myLeave;
+        }
+
+        function clearMyMonthData() {
+            if (!currentUser) return;
+            const dt = new Date();
+            if (nav !== 0) dt.setMonth(new Date().getMonth() + nav);
+            const prefix = getCurrentMonthPrefix(dt);
+
+            if(confirm(`清除 ${currentUser.name} 本月排假？`)) {
+                const leaves = AppData.leaveData[currentUser.id] || [];
+                AppData.leaveData[currentUser.id] = leaves.filter(d => !d.startsWith(prefix));
+                saveData();
+                loadCalendar();
+            }
+        }
+
+        function resetAllData() {
+            if (confirm('⚠️ 警告：這將清除所有資料！無法復原。')) {
+                localStorage.removeItem(DATA_STORAGE_KEY);
+                location.reload();
+            }
+        }
+
+        // === 初始化事件監聽 ===
+        document.getElementById('nextMonth').addEventListener('click', () => { nav++; loadCalendar(); });
+        document.getElementById('prevMonth').addEventListener('click', () => { nav--; loadCalendar(); });
+        
+        // 【新增】今天按鈕事件
+        document.getElementById('todayBtn').addEventListener('click', () => { 
+            nav = 0; // 重置偏移量
+            loadCalendar(); 
+        });
+
+        // 啟動
+        loadData();
+        renderUserTags();
+        updateCurrentUserNameDisplay();
+        loadCalendar(); 
+
+    </script>
+</body>
+</html>
