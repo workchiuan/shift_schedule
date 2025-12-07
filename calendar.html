@@ -3,19 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>排假系統</title>
+    <title>商品部-排假系統</title>
     <style>
         :root {
             --primary-color: #4a90e2;
             --leave-color: #ff7675;
-            --weekend-color: #f1f2f6; /* 週末顏色 */
-            --holiday-color: #d1f7e0; /* 國定假日顏色 (淺綠) */
+            --leave-am-color: #74b9ff; /* 上午假顏色 (淺藍) */
+            --leave-pm-color: #a29bfe; /* 下午假顏色 (淺紫) */
+            --holiday-color: #d1f7e0;
             --bg-color: #ffffff;
             --text-color: #2d3436;
             --border-color: #dfe6e9;
             --secondary-color: #636e72;
-            --highlight-color: #ffeaa7; /* 淺黃色用於標記自己 */
-            --today-border-color: #e17055; /* 今天的標記顏色 (深橘紅) */
+            --highlight-color: #ffeaa7;
+            --today-border-color: #e17055;
         }
 
         body {
@@ -38,6 +39,7 @@
             overflow: hidden;
             padding: 20px;
             margin-bottom: 20px;
+            position: relative; /* For modal positioning context if needed */
         }
 
         /* --- 人員管理區塊 --- */
@@ -130,11 +132,7 @@
         }
 
         .nav-btn:hover { background: #357abd; }
-
-        /* 今天按鈕的特別樣式 */
-        .btn-today {
-            background-color: var(--secondary-color);
-        }
+        .btn-today { background-color: var(--secondary-color); }
         .btn-today:hover { background-color: #2d3436; }
 
         .status-bar {
@@ -148,9 +146,7 @@
             font-size: 0.9rem;
         }
         
-        .status-bar .info-box {
-            font-weight: bold;
-        }
+        .status-bar .info-box { font-weight: bold; }
 
         /* Calendar Grid */
         .calendar-grid {
@@ -179,12 +175,7 @@
         }
 
         .day-cell:hover { background-color: #f0f8ff; }
-
-        /* 今天的特別樣式 (紅框) */
-        .day-cell.is-today {
-            border: 2px solid var(--today-border-color) !important;
-            z-index: 1; /* 確保邊框浮在上方 */
-        }
+        .day-cell.is-today { border: 2px solid var(--today-border-color) !important; z-index: 1; }
 
         .day-number {
             font-weight: bold;
@@ -195,21 +186,8 @@
             justify-content: space-between;
         }
         
-        .holiday-name {
-            font-size: 0.75rem;
-            color: #27ae60;
-            font-weight: normal;
-        }
-
-        /* 標記：週末底色 */
-        .day-cell.is-weekend {
-            background-color: var(--weekend-color) !important;
-        }
-        
-        /* 標記：國定假日底色 */
-        .day-cell.is-holiday {
-            background-color: var(--holiday-color) !important;
-        }
+        .holiday-name { font-size: 0.75rem; color: #27ae60; font-weight: normal; }
+        .day-cell.is-holiday { background-color: var(--holiday-color) !important; }
 
         /* Leave Styling */
         .leave-names {
@@ -229,14 +207,16 @@
             white-space: nowrap;
         }
         
+        /* 區分上下午顏色 */
+        .leave-tag.type-am { background: var(--leave-am-color); }
+        .leave-tag.type-pm { background: var(--leave-pm-color); }
+
         .leave-tag.my-leave {
-            background: #ffc048;
+            background: #ffc048; /* 自己永遠是黃色系，但在文字上做區別 */
+            color: #2d3436;
         }
 
-        .day-cell.empty {
-            background: #fafafa;
-            cursor: default;
-        }
+        .day-cell.empty { background: #fafafa; cursor: default; }
         
         .controls {
             margin-top: 20px;
@@ -255,19 +235,69 @@
             cursor: pointer;
         }
 
+        /* --- Modal (彈窗) --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-overlay.active { display: flex; }
+
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 300px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+
+        .modal-title {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .modal-options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn-option {
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: 0.2s;
+        }
+
+        .btn-all { background: var(--leave-color); color: white; }
+        .btn-am { background: var(--leave-am-color); color: white; }
+        .btn-pm { background: var(--leave-pm-color); color: white; }
+        .btn-delete { background: #dfe6e9; color: var(--text-color); margin-top: 5px; }
+        .btn-cancel { background: transparent; color: var(--secondary-color); text-decoration: underline; margin-top: 10px; }
+
+        .btn-all:hover { filter: brightness(0.9); }
+
     </style>
 </head>
 <body>
     <div class="user-management">
         <h2>人員名單</h2>
         <p>點擊下方人員名稱來切換自己的名字進行排假。點擊 <span style="color:var(--leave-color);">X</span> 刪除人員。</p>
-        <div class="user-list-container" id="userListContainer">
-            </div>
+        <div class="user-list-container" id="userListContainer"></div>
 
         <div class="add-user-controls">
             <input type="text" id="newUserName" placeholder="輸入新人員名稱">
             <button onclick="addNewUser()">新增人員</button>
-            <button class="btn-reset" onclick="resetAllData()" style="background-color: #d63031;">清除所有資料</button>
+            <button class="btn-reset" onclick="clearMyMonthData()">清除本月排假</button>
         </div>
         <hr style="margin: 15px 0; border: 0; border-top: 1px solid #ccc;">
         <p>當前人員：<span id="currentUserNameDisplay" style="color: var(--primary-color); font-weight: bold;">請選擇人員</span></p>
@@ -279,9 +309,7 @@
                 <button class="nav-btn btn-today" id="todayBtn">今天</button>
                 <button class="nav-btn" id="prevMonth">&lt; 上個月</button>
             </div>
-            
             <h1 id="monthDisplay">載入中...</h1>
-            
             <button class="nav-btn" id="nextMonth">下個月 &gt;</button>
         </header>
 
@@ -297,45 +325,59 @@
             </div>
         </div>
 
-        <div class="calendar-grid" id="calendar">
-            </div>
+        <div class="calendar-grid" id="calendar"></div>
 
         <div class="controls">
-            <div style="color: var(--primary-color); font-size: 0.9rem;">**提示**：點擊日期進行排假/銷假 (假日無法排假)。</div>
-            <button class="btn-reset" onclick="clearMyMonthData()">清除本月排假</button>
+            <div style="color: var(--primary-color); font-size: 0.9rem;">**提示**：點擊日期選擇休整天、上午或下午。</div>
+            <button class="btn-reset" onclick="resetAllData()" style="background-color: #d63031;">清除所有資料</button>
+        </div>
+    </div>
+
+    <!-- 彈窗結構 -->
+    <div id="leaveModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-title" id="modalDateTitle">2024-01-01</div>
+            <div class="modal-options">
+                <button class="btn-option btn-all" onclick="confirmLeave('all')">休整天</button>
+                <button class="btn-option btn-am" onclick="confirmLeave('am')">休上午 (AM)</button>
+                <button class="btn-option btn-pm" onclick="confirmLeave('pm')">休下午 (PM)</button>
+                <button id="btnDeleteLeave" class="btn-option btn-delete" onclick="deleteCurrentLeave()">清除排假</button>
+                <button class="btn-option btn-cancel" onclick="closeModal()">取消</button>
+            </div>
         </div>
     </div>
 
     <script>
         // === 1. 核心資料與設定 ===
-        let nav = 0; // 月份偏移量 (0 代表本月)
+        let nav = 0; 
         let AppData = {
             users: [],
-            leaveData: {}
+            leaveData: {} 
+            // 結構更新: userId: [ { date: 'YYYY-MM-DD', type: 'all'|'am'|'pm' }, ... ]
+            // 為了相容舊版，若遇到單純字串會自動轉換
         };
         let currentUser = null; 
         const DATA_STORAGE_KEY = 'multiUserLeaveScheduleData';
-
-        // 假日快取
         let holidayCache = {}; 
 
-        // === 2. API 與工具函式 ===
-        
-        async function fetchHolidays(year) {
-            if (holidayCache[year]) {
-                return holidayCache[year];
-            }
+        // Modal 相關變數
+        let selectedDateStr = null;
+        const modal = document.getElementById('leaveModal');
+        const modalDateTitle = document.getElementById('modalDateTitle');
+        const btnDeleteLeave = document.getElementById('btnDeleteLeave');
 
+        // === 2. API 與工具函式 ===
+        async function fetchHolidays(year) {
+            if (holidayCache[year]) return holidayCache[year];
             const apiUrl = `https://cdn.jsdelivr.net/gh/ruyut/TaiwanCalendar/data/${year}.json`;
             console.log(`正在抓取 ${year} 年的假日資料: ${apiUrl}`);
-
             try {
                 const response = await fetch(apiUrl);
                 if (!response.ok) {
+                    alert(`⚠️ ${year} 年尚未有休假資料`);
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const data = await response.json();
-                
                 const holidayMap = {};
                 data.forEach(item => {
                     if (item.isHoliday) {
@@ -347,13 +389,10 @@
                         holidayMap[dateStr] = name;
                     }
                 });
-
                 holidayCache[year] = holidayMap;
                 return holidayMap;
-
             } catch (error) {
                 console.error("抓取假日資料失敗:", error);
-                // 失敗時不跳 alert 避免干擾，但 console 會顯示
                 holidayCache[year] = {}; 
                 return {};
             }
@@ -363,13 +402,11 @@
             if (holidayMap && holidayMap[dateStr]) {
                 return { isHoliday: true, type: 'national', name: holidayMap[dateStr] };
             }
-
             const date = new Date(dateStr);
-            const dayOfWeek = date.getDay(); // 0=週日, 6=週六
+            const dayOfWeek = date.getDay(); 
             if (dayOfWeek === 0 || dayOfWeek === 6) {
                 return { isHoliday: true, type: 'weekend', name: '' };
             }
-
             return { isHoliday: false };
         }
 
@@ -406,10 +443,18 @@
             renderUserTags();
         }
 
+        // 資料正規化助手：處理舊版資料 (字串) 與新版資料 (物件)
+        function normalizeLeaveData(data) {
+            if (typeof data === 'string') {
+                return { date: data, type: 'all' };
+            }
+            return data;
+        }
+
         // === 4. 核心邏輯：載入行事曆 ===
         async function loadCalendar() {
-            const dt = new Date(); // 這是今天的時間物件
-            const today = new Date(); // 保存另一個「今天」的參照，用於比對
+            const dt = new Date();
+            const today = new Date();
             
             if (nav !== 0) {
                 dt.setMonth(new Date().getMonth() + nav);
@@ -427,7 +472,6 @@
             monthDisplay.innerText = `${year}年 ${month + 1}月`;
             calendar.innerHTML = '';
 
-            // 繪製週標題
             weekDays.forEach(day => {
                 const dayHeader = document.createElement('div');
                 dayHeader.classList.add('day-name');
@@ -435,7 +479,6 @@
                 calendar.appendChild(dayHeader);
             });
 
-            // 繪製前面的空白
             const paddingDays = firstDayOfMonth.getDay();
             for(let i = 0; i < paddingDays; i++) {
                 const paddingSquare = document.createElement('div');
@@ -443,21 +486,17 @@
                 calendar.appendChild(paddingSquare);
             }
             
-            // 繪製日期格子
             for(let i = 1; i <= daysInMonth; i++) {
                 const daySquare = document.createElement('div');
                 daySquare.classList.add('day-cell');
                 
                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
                 
-                // 檢查是否為「今天」
                 if (i === today.getDate() && year === today.getFullYear() && month === today.getMonth()) {
                     daySquare.classList.add('is-today');
                 }
 
-                // 判斷假日
                 const holidayInfo = getHolidayInfo(dateStr, holidayMap);
-                
                 if (holidayInfo.isHoliday) {
                     if (holidayInfo.type === 'national') {
                         daySquare.classList.add('is-holiday'); 
@@ -468,7 +507,6 @@
 
                 const dayNumberDiv = document.createElement('div');
                 dayNumberDiv.classList.add('day-number');
-                
                 const numSpan = document.createElement('span');
                 numSpan.innerText = i;
                 dayNumberDiv.appendChild(numSpan);
@@ -479,7 +517,6 @@
                     nameSpan.innerText = holidayInfo.name;
                     dayNumberDiv.appendChild(nameSpan);
                 }
-
                 daySquare.appendChild(dayNumberDiv);
 
                 // 顯示排假
@@ -487,51 +524,128 @@
                 leaveNamesDiv.classList.add('leave-names');
                 
                 AppData.users.forEach(user => {
-                    const leaves = AppData.leaveData[user.id] || [];
-                    if (leaves.includes(dateStr)) {
+                    const leavesRaw = AppData.leaveData[user.id] || [];
+                    // 尋找當天是否有假
+                    const leave = leavesRaw.map(normalizeLeaveData).find(l => l.date === dateStr);
+                    
+                    if (leave) {
                         const tag = document.createElement('span');
                         tag.classList.add('leave-tag');
-                        tag.innerText = user.name;
+                        
+                        let displayText = user.name;
+                        
+                        // 根據類型給予樣式與文字
+                        if (leave.type === 'am') {
+                            tag.classList.add('type-am');
+                            displayText += '(上)';
+                        } else if (leave.type === 'pm') {
+                            tag.classList.add('type-pm');
+                            displayText += '(下)';
+                        } else {
+                            // all - default color
+                        }
+
+                        tag.innerText = displayText;
+                        
                         if (currentUser && currentUser.id === user.id) {
                             tag.classList.add('my-leave');
                         }
                         leaveNamesDiv.appendChild(tag);
                     }
                 });
-                
                 daySquare.appendChild(leaveNamesDiv);
 
-                // 點擊事件
+                // 點擊事件 (改為開啟 Modal)
                 daySquare.addEventListener('click', () => {
                     if (!currentUser) {
                         alert('請先在上方選擇一位操作者！');
                         return;
                     }
-                    
                     if (holidayInfo.isHoliday) {
                         const reason = holidayInfo.type === 'national' ? holidayInfo.name : '週末';
                         alert(`❌ 無法排假：這一天是 ${reason}`);
                         return;
                     }
-
-                    const leaves = AppData.leaveData[currentUser.id] || [];
-                    if (leaves.includes(dateStr)) {
-                        AppData.leaveData[currentUser.id] = leaves.filter(d => d !== dateStr);
-                    } else {
-                        leaves.push(dateStr);
-                        AppData.leaveData[currentUser.id] = leaves;
-                    }
-                    saveData();
-                    loadCalendar(); 
+                    openLeaveModal(dateStr);
                 });
 
                 calendar.appendChild(daySquare);
             }
-            
             updateStatistics();
         }
 
-        // === 5. 其他功能函式 ===
+        // === 5. Modal 與排假邏輯 ===
+
+        function openLeaveModal(dateStr) {
+            selectedDateStr = dateStr;
+            modalDateTitle.innerText = `排假設定：${dateStr}`;
+            modal.classList.add('active');
+
+            // 檢查當前日期是否已排假，若是，顯示刪除按鈕
+            const leaves = AppData.leaveData[currentUser.id] || [];
+            const existing = leaves.map(normalizeLeaveData).find(l => l.date === dateStr);
+            
+            if (existing) {
+                btnDeleteLeave.style.display = 'block';
+                btnDeleteLeave.innerText = `清除目前排假 (${formatType(existing.type)})`;
+            } else {
+                btnDeleteLeave.style.display = 'none';
+            }
+        }
+
+        function formatType(type) {
+            if(type === 'am') return '上午';
+            if(type === 'pm') return '下午';
+            return '整天';
+        }
+
+        function closeModal() {
+            modal.classList.remove('active');
+            selectedDateStr = null;
+        }
+
+        function confirmLeave(type) {
+            if (!currentUser || !selectedDateStr) return;
+
+            const leaves = AppData.leaveData[currentUser.id] || [];
+            // 移除當天舊的 (如果有)
+            const newLeaves = leaves.filter(l => {
+                const norm = normalizeLeaveData(l);
+                return norm.date !== selectedDateStr;
+            });
+            
+            // 加入新的
+            newLeaves.push({ date: selectedDateStr, type: type });
+            
+            // 排序 (雖然不是顯示必需，但資料整潔)
+            newLeaves.sort((a, b) => {
+                const da = typeof a === 'string' ? a : a.date;
+                const db = typeof b === 'string' ? b : b.date;
+                return da.localeCompare(db);
+            });
+
+            AppData.leaveData[currentUser.id] = newLeaves;
+            saveData();
+            closeModal();
+            loadCalendar();
+        }
+
+        function deleteCurrentLeave() {
+            if (!currentUser || !selectedDateStr) return;
+            
+            const leaves = AppData.leaveData[currentUser.id] || [];
+            const newLeaves = leaves.filter(l => {
+                const norm = normalizeLeaveData(l);
+                return norm.date !== selectedDateStr;
+            });
+
+            AppData.leaveData[currentUser.id] = newLeaves;
+            saveData();
+            closeModal();
+            loadCalendar();
+        }
+
+        // === 6. 其他功能函式 ===
 
         function generateUniqueId() {
             return 'u' + Date.now();
@@ -607,10 +721,17 @@
             
             AppData.users.forEach(user => {
                 const leaves = AppData.leaveData[user.id] || [];
-                const monthLeaves = leaves.filter(d => d.startsWith(prefix));
-                totalLeave += monthLeaves.length;
+                // 過濾並正規化
+                const monthLeaves = leaves.map(normalizeLeaveData).filter(l => l.date.startsWith(prefix));
+                
+                // 計算總時數 (半天算 0.5)
+                const hours = monthLeaves.reduce((acc, curr) => {
+                    return acc + (curr.type === 'all' ? 1 : 0.5);
+                }, 0);
+
+                totalLeave += hours;
                 if (currentUser && user.id === currentUser.id) {
-                    myLeave = monthLeaves.length;
+                    myLeave = hours;
                 }
             });
 
@@ -626,7 +747,13 @@
 
             if(confirm(`清除 ${currentUser.name} 本月排假？`)) {
                 const leaves = AppData.leaveData[currentUser.id] || [];
-                AppData.leaveData[currentUser.id] = leaves.filter(d => !d.startsWith(prefix));
+                // 過濾掉本月的
+                const newLeaves = leaves.filter(l => {
+                    const norm = normalizeLeaveData(l);
+                    return !norm.date.startsWith(prefix);
+                });
+                
+                AppData.leaveData[currentUser.id] = newLeaves;
                 saveData();
                 loadCalendar();
             }
@@ -642,11 +769,14 @@
         // === 初始化事件監聽 ===
         document.getElementById('nextMonth').addEventListener('click', () => { nav++; loadCalendar(); });
         document.getElementById('prevMonth').addEventListener('click', () => { nav--; loadCalendar(); });
-        
-        // 【新增】今天按鈕事件
         document.getElementById('todayBtn').addEventListener('click', () => { 
-            nav = 0; // 重置偏移量
+            nav = 0; 
             loadCalendar(); 
+        });
+
+        // 點擊 Modal 外圍關閉
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
         });
 
         // 啟動
@@ -657,5 +787,4 @@
 
     </script>
 </body>
-
 </html>
