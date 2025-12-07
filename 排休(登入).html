@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>商品部-排假系統</title>
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --leave-color: #ff7675;
+            --leave-am-color: #74b9ff;
+            --leave-pm-color: #a29bfe;
+            --holiday-color: #d1f7e0;
+            --bg-color: #ffffff;
+            --text-color: #2d3436;
+            --border-color: #dfe6e9;
+            --secondary-color: #636e72;
+            --highlight-color: #ffeaa7;
+            --today-border-color: #e17055;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Microsoft JhengHei", Arial, sans-serif;
+            background-color: #f5f6fa;
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+        }
+
+        /* === 登入畫面樣式 === */
+        .login-container {
+            background: var(--bg-color);
+            width: 100%;
+            max-width: 400px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            padding: 40px;
+            text-align: center;
+        }
+
+        .login-container h1 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+
+        .login-container p {
+            color: var(--secondary-color);
+            margin-bottom: 30px;
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .login-form input {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+
+        .login-form input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .login-form button {
+            padding: 12px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .login-form button:hover {
+            background: #357abd;
+        }
+
+        .error-message {
+            color: #d63031;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        /* === 主系統樣式 === */
+        .main-system {
+            display: none;
+            width: 100%;
+        }
+
+        .main-system.active {
+            display: block;
+        }
+
+        .top-bar {
+            background: var(--bg-color);
+            width: 100%;
+            max-width: 900px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .top-bar .user-info {
+            font-size: 1rem;
+            color: var(--text-color);
+        }
+
+        .top-bar .user-info strong {
+            color: var(--primary-color);
+        }
+
+        .btn-logout {
+            padding: 8px 16px;
+            background: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-logout:hover {
+            background: #2d3436;
+        }
+
+        .container {
+            background: var(--bg-color);
+            width: 100%;
+            max-width: 900px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            overflow: hidden;
+            padding: 20px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .user-management {
+            background: #e7e9ed;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            max-width: 900px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .user-list-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .user-tag {
+            background: #fff;
+            padding: 5px 10px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        
+        .user-tag.active {
+            background: var(--highlight-color);
+            box-shadow: 0 0 5px rgba(255, 175, 50, 0.5);
+            font-weight: bold;
+        }
+
+        .user-tag button {
+            background: none;
+            border: none;
+            color: var(--leave-color);
+            font-weight: bold;
+            margin-left: 8px;
+            cursor: pointer;
+        }
+
+        .add-user-controls input {
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            margin-right: 10px;
+            width: 200px;
+        }
+        
+        .add-user-controls button {
+            padding: 8px 15px;
+            background: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        h1 { margin: 0; font-size: 1.5rem; }
+        h2 { margin: 0 0 10px 0; font-size: 1.2rem; }
+
+        .header-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .nav-btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.2s;
+        }
+
+        .nav-btn:hover { background: #357abd; }
+        .btn-today { background-color: var(--secondary-color); }
+        .btn-today:hover { background-color: #2d3436; }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+        }
+        
+        .status-bar .info-box { font-weight: bold; }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background: var(--border-color);
+            border: 1px solid var(--border-color);
+        }
+
+        .day-name {
+            background: var(--primary-color);
+            color: white;
+            padding: 10px 0;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .day-cell {
+            background: var(--bg-color);
+            min-height: 120px;
+            padding: 5px;
+            cursor: pointer;
+            position: relative;
+            transition: background 0.1s;
+        }
+
+        .day-cell:hover { background-color: #f0f8ff; }
+        .day-cell.is-today { border: 2px solid var(--today-border-color) !important; z-index: 1; }
+
+        .day-number {
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 5px;
+            pointer-events: none;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .holiday-name { font-size: 0.75rem; color: #27ae60; font-weight: normal; }
+        .day-cell.is-holiday { background-color: var(--holiday-color) !important; }
+
+        .leave-names {
+            font-size: 0.8rem;
+            line-height: 1.3;
+            max-height: 80px; 
+            overflow-y: auto; 
+        }
+        
+        .leave-tag {
+            display: inline-block;
+            background: var(--leave-color);
+            color: white;
+            padding: 2px 5px;
+            border-radius: 3px;
+            margin: 2px 0;
+            white-space: nowrap;
+        }
+        
+        .leave-tag.type-am { background: var(--leave-am-color); }
+        .leave-tag.type-pm { background: var(--leave-pm-color); }
+
+        .leave-tag.my-leave {
+            background: #ffc048;
+            color: #2d3436;
+        }
+
+        .day-cell.empty { background: #fafafa; cursor: default; }
+        
+        .controls {
+            margin-top: 20px;
+            text-align: right;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .btn-reset {
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-overlay.active { display: flex; }
+
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 300px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+
+        .modal-title {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .modal-options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn-option {
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: 0.2s;
+        }
+
+        .btn-all { background: var(--leave-color); color: white; }
+        .btn-am { background: var(--leave-am-color); color: white; }
+        .btn-pm { background: var(--leave-pm-color); color: white; }
+        .btn-delete { background: #dfe6e9; color: var(--text-color); margin-top: 5px; }
+        .btn-cancel { background: transparent; color: var(--secondary-color); text-decoration: underline; margin-top: 10px; }
+
+        .btn-all:hover, .btn-am:hover, .btn-pm:hover, .btn-delete:hover { filter: brightness(0.9); }
+    </style>
+</head>
+<body>
+    <!-- 登入畫面 -->
+    <div id="loginContainer" class="login-container">
+        <h1>🗓️ 商品部排假系統</h1>
+        <p>請輸入帳號密碼登入</p>
+        <form class="login-form" onsubmit="handleLogin(event)">
+            <input type="text" id="loginUsername" placeholder="帳號" required>
+            <input type="password" id="loginPassword" placeholder="密碼" required>
+            <button type="submit">登入</button>
+        </form>
+        <div id="errorMessage" class="error-message">帳號或密碼錯誤</div>
+    </div>
+
+    <!-- 主系統 -->
+    <div id="mainSystem" class="main-system">
+        <div class="top-bar">
+            <div class="user-info">
+                歡迎，<strong id="loggedInUser"></strong>
+            </div>
+            <button class="btn-logout" onclick="handleLogout()">登出</button>
+        </div>
+
+        <div class="user-management">
+            <h2>人員名單</h2>
+            <p>點擊下方人員名稱來切換自己的名字進行排假。點擊 <span style="color:var(--leave-color);">X</span> 刪除人員。</p>
+            <div class="user-list-container" id="userListContainer"></div>
+
+            <div class="add-user-controls">
+                <input type="text" id="newUserName" placeholder="輸入新人員名稱">
+                <button onclick="addNewUser()">新增人員</button>
+                <button class="btn-reset" onclick="clearMyMonthData()">清除本月排假</button>
+            </div>
+            <hr style="margin: 15px 0; border: 0; border-top: 1px solid #ccc;">
+            <p>當前人員：<span id="currentUserNameDisplay" style="color: var(--primary-color); font-weight: bold;">請選擇人員</span></p>
+        </div>
+
+        <div class="container">
+            <header>
+                <div class="header-controls">
+                    <button class="nav-btn btn-today" id="todayBtn">今天</button>
+                    <button class="nav-btn" id="prevMonth">&lt; 上個月</button>
+                </div>
+                <h1 id="monthDisplay">載入中...</h1>
+                <button class="nav-btn" id="nextMonth">下個月 &gt;</button>
+            </header>
+
+            <div class="status-bar">
+                <div class="info-box">
+                    總排假天數：<span id="totalLeaveCount" style="color: var(--leave-color);">0</span> (本月)
+                </div>
+                <div class="info-box">
+                    我的排假：<span id="myLeaveCount" style="color: #ffc048;">0</span> (本月)
+                </div>
+                <div class="info-box">
+                    排假總人數：<span id="totalPeopleCount">0</span>
+                </div>
+            </div>
+
+            <div class="calendar-grid" id="calendar"></div>
+
+            <div class="controls">
+                <div style="color: var(--primary-color); font-size: 0.9rem;">**提示**：點擊日期選擇休整天、上午或下午。</div>
+                <button class="btn-reset" onclick="resetAllData()" style="background-color: #d63031;">清除所有資料</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 彈窗結構 -->
+    <div id="leaveModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-title" id="modalDateTitle">2024-01-01</div>
+            <div class="modal-options">
+                <button class="btn-option btn-all" onclick="confirmLeave('all')">休整天</button>
+                <button class="btn-option btn-am" onclick="confirmLeave('am')">休上午 (AM)</button>
+                <button class="btn-option btn-pm" onclick="confirmLeave('pm')">休下午 (PM)</button>
+                <button id="btnDeleteLeave" class="btn-option btn-delete" onclick="deleteCurrentLeave()">清除排假</button>
+                <button class="btn-option btn-cancel" onclick="closeModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // === 登入系統 ===
+        const VALID_USERS = {
+            'admin': 'admin123',
+            'user1': 'pass123',
+            'demo': 'demo'
+        };
+
+        const AUTH_KEY = 'leaveSystemAuth';
+        const loginContainer = document.getElementById('loginContainer');
+        const mainSystem = document.getElementById('mainSystem');
+        const loggedInUserSpan = document.getElementById('loggedInUser');
+        const errorMessage = document.getElementById('errorMessage');
+
+        function handleLogin(event) {
+            event.preventDefault();
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+
+            if (VALID_USERS[username] && VALID_USERS[username] === password) {
+                localStorage.setItem(AUTH_KEY, username);
+                showMainSystem(username);
+            } else {
+                errorMessage.classList.add('show');
+                setTimeout(() => errorMessage.classList.remove('show'), 3000);
+            }
+        }
+
+        function handleLogout() {
+            if (confirm('確定要登出嗎？')) {
+                localStorage.removeItem(AUTH_KEY);
+                loginContainer.style.display = 'block';
+                mainSystem.classList.remove('active');
+            }
+        }
+
+        function showMainSystem(username) {
+            loginContainer.style.display = 'none';
+            mainSystem.classList.add('active');
+            loggedInUserSpan.textContent = username;
+            initSystem();
+        }
+
+        function checkAuth() {
+            const loggedInUser = localStorage.getItem(AUTH_KEY);
+            if (loggedInUser) {
+                showMainSystem(loggedInUser);
+            }
+        }
+
+        // === 核心系統 ===
+        let nav = 0; 
+        let AppData = {
+            users: [],
+            leaveData: {}
+        };
+        let currentUser = null; 
+        const DATA_STORAGE_KEY = 'multiUserLeaveScheduleData';
+        let holidayCache = {}; 
+
+        let selectedDateStr = null;
+        const modal = document.getElementById('leaveModal');
+        const modalDateTitle = document.getElementById('modalDateTitle');
+        const btnDeleteLeave = document.getElementById('btnDeleteLeave');
+
+        async function fetchHolidays(year) {
+            if (holidayCache[year]) return holidayCache[year];
+            const apiUrl = `https://cdn.jsdelivr.net/gh/ruyut/TaiwanCalendar/data/${year}.json`;
+            console.log(`正在抓取 ${year} 年的假日資料: ${apiUrl}`);
+            try {
+                const response = await fetch(apiUrl);
+                if (!response.ok) {
+                    alert(`⚠️ ${year} 年尚未有休假資料`);
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                const holidayMap = {};
+                data.forEach(item => {
+                    if (item.isHoliday) {
+                        const name = item.description || item.name || "休假";
+                        let dateStr = item.date;
+                        if(dateStr.length === 8 && !dateStr.includes('-')) {
+                            dateStr = `${dateStr.substring(0,4)}-${dateStr.substring(4,6)}-${dateStr.substring(6,8)}`;
+                        }
+                        holidayMap[dateStr] = name;
+                    }
+                });
+                holidayCache[year] = holidayMap;
+                return holidayMap;
+            } catch (error) {
+                console.error("抓取假日資料失敗:", error);
+                holidayCache[year] = {}; 
+                return {};
+            }
+        }
+
+        function getHolidayInfo(dateStr, holidayMap) {
+            if (holidayMap && holidayMap[dateStr]) {
+                return { isHoliday: true, type: 'national', name: holidayMap[dateStr] };
+            }
+            const date = new Date(dateStr);
+            const dayOfWeek = date.getDay(); 
+            if (dayOfWeek === 0 || dayOfWeek === 6) {
+                return { isHoliday: true, type: 'weekend', name: '' };
+            }
+            return { isHoliday: false };
+        }
+
+        const calendar = document.getElementById('calendar');
+        const monthDisplay = document.getElementById('monthDisplay');
+        const totalLeaveCountSpan = document.getElementById('totalLeaveCount');
+        const myLeaveCountSpan = document.getElementById('myLeaveCount');
+        const totalPeopleCountSpan = document.getElementById('totalPeopleCount');
+        const currentUserNameDisplay = document.getElementById('currentUserNameDisplay');
+        const userListContainer = document.getElementById('userListContainer');
+        const newUserNameInput = document.getElementById('newUserName');
+        const weekDays = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+
+        function loadData() {
+            const stored = localStorage.getItem(DATA_STORAGE_KEY);
+            if (stored) {
+                AppData = JSON.parse(stored);
+            } else {
+                AppData.users = [
+                    { id: 'u1', name: '蔡依君' },
+                    { id: 'u2', name: '陳品溱' }
+                ];
+                AppData.users.forEach(u => AppData.leaveData[u.id] = []);
+            }
+            if (AppData.users.length > 0) {
+                switchUser(AppData.users[0].id);
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify(AppData));
+            updateStatistics();
+            renderUserTags();
+        }
+
+        function normalizeLeaveData(data) {
+            if (typeof data === 'string') {
+                return { date: data, type: 'all' };
+            }
+            return data;
+        }
+
+        async function loadCalendar() {
+            const dt = new Date();
+            const today = new Date();
+            
+            if (nav !== 0) {
+                dt.setMonth(new Date().getMonth() + nav);
+            }
+
+            const year = dt.getFullYear();
+            const month = dt.getMonth();
+            const firstDayOfMonth = new Date(year, month, 1);
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            monthDisplay.innerText = `${year}年 ${month + 1}月 (更新假日中...)`;
+
+            const holidayMap = await fetchHolidays(year);
+
+            monthDisplay.innerText = `${year}年 ${month + 1}月`;
+            calendar.innerHTML = '';
+
+            weekDays.forEach(day => {
+                const dayHeader = document.createElement('div');
+                dayHeader.classList.add('day-name');
+                dayHeader.innerText = day;
+                calendar.appendChild(dayHeader);
+            });
+
+            const paddingDays = firstDayOfMonth.getDay();
+            for(let i = 0; i < paddingDays; i++) {
+                const paddingSquare = document.createElement('div');
+                paddingSquare.classList.add('day-cell', 'empty');
+                calendar.appendChild(paddingSquare);
+            }
+            
+            for(let i = 1; i <= daysInMonth; i++) {
+                const daySquare = document.createElement('div');
+                daySquare.classList.add('day-cell');
+                
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                
+                if (i === today.getDate() && year === today.getFullYear() && month === today.getMonth()) {
+                    daySquare.classList.add('is-today');
+                }
+
+                const holidayInfo = getHolidayInfo(dateStr, holidayMap);
+                if (holidayInfo.isHoliday) {
+                    if (holidayInfo.type === 'national') {
+                        daySquare.classList.add('is-holiday'); 
+                    } else {
+                        daySquare.classList.add('is-weekend');
+                    }
+                }
+
+                const dayNumberDiv = document.createElement('div');
+                dayNumberDiv.classList.add('day-number');
+                const numSpan = document.createElement('span');
+                numSpan.innerText = i;
+                dayNumberDiv.appendChild(numSpan);
+
+                if (holidayInfo.type === 'national') {
+                    const nameSpan = document.createElement('span');
+                    nameSpan.classList.add('holiday-name');
+                    nameSpan.innerText = holidayInfo.name;
+                    dayNumberDiv.appendChild(nameSpan);
+                }
+                daySquare.appendChild(dayNumberDiv);
+
+                const leaveNamesDiv = document.createElement('div');
+                leaveNamesDiv.classList.add('leave-names');
+                
+                AppData.users.forEach(user => {
+                    const leavesRaw = AppData.leaveData[user.id] || [];
+                    const leave = leavesRaw.map(normalizeLeaveData).find(l => l.date === dateStr);
+                    
+                    if (leave) {
+                        const tag = document.createElement('span');
+                        tag.classList.add('leave-tag');
+                        
+                        let displayText = user.name;
+                        
+                        if (leave.type === 'am') {
+                            tag.classList.add('type-am');
+                            displayText += '(上)';
+                        } else if (leave.type === 'pm') {
+                            tag.classList.add('type-pm');
+                            displayText += '(下)';
+                        }
+
+                        tag.innerText = displayText;
+                        
+                        if (currentUser && currentUser.id === user.id) {
+                            tag.classList.add('my-leave');
+                        }
+                        leaveNamesDiv.appendChild(tag);
+                    }
+                });
+                daySquare.appendChild(leaveNamesDiv);
+
+                daySquare.addEventListener('click', () => {
+                    if (!currentUser) {
+                        alert('請先在上方選擇一位操作者！');
+                        return;
+                    }
+                    if (holidayInfo.isHoliday) {
+                        const reason = holidayInfo.type === 'national' ? holidayInfo.name : '週末';
+                        alert(`❌ 無法排假：這一天是 ${reason}`);
+                        return;
+                    }
+                    openLeaveModal(dateStr);
+                });
+
+                calendar.appendChild(daySquare);
+            }
+            updateStatistics();
+        }
+
+        function openLeaveModal(dateStr) {
+            selectedDateStr = dateStr;
+            modalDateTitle.innerText = `排假設定：${dateStr}`;
+            modal.classList.add('active');
+
+            const leaves = AppData.leaveData[currentUser.id] || [];
+            const existing = leaves.map(normalizeLeaveData).find(l => l.date === dateStr);
+            
+            if (existing) {
+                btnDeleteLeave.style.display = 'block';
+                btnDeleteLeave.innerText = `清除目前排假 (${formatType(existing.type)})`;
+            } else {
+                btnDeleteLeave.style.display = 'none';
+            }
+        }
+
+        function formatType(type) {
+            if(type === 'am') return '上午';
+            if(type === 'pm') return '下午';
+            return '整天';
+        }
+
+        function closeModal() {
+            modal.classList.remove('active');
+            selectedDateStr = null;
+        }
+
+        function confirmLeave(type) {
+            if (!currentUser || !selectedDateStr) return;
+
+            const leaves = AppData.leaveData[currentUser.id] || [];
+            const newLeaves = leaves.filter(l => {
+                const norm = normalizeLeaveData(l);
+                return norm.date !== selectedDateStr;
+            });
+            
+            newLeaves.push({ date: selectedDateStr, type: type });
+            
+            newLeaves.sort((a, b) => {
+                const da = typeof a === 'string' ? a : a.date;
+                const db = typeof b === 'string' ? b : b.date;
+                return da.localeCompare(db);
+            });
+
+            AppData.leaveData[currentUser.id] = newLeaves;
+            saveData();
+            closeModal();
+            loadCalendar();
+        }
+
+        function deleteCurrentLeave() {
+            if (!currentUser || !selectedDateStr) return;
+            
+            const leaves = AppData.leaveData[currentUser.id] || [];
+            const newLeaves = leaves.filter(l => {
+                const norm = normalizeLeaveData(l);
+                return norm.date !== selectedDateStr;
+            });
+
+            AppData.leaveData[currentUser.id] = newLeaves;
+            saveData();
+            closeModal();
+            loadCalendar();
+        }
+
+        function generateUniqueId() {
+            return 'u' + Date.now();
+        }
+
+        function addNewUser() {
+            const name = newUserNameInput.value.trim();
+            if (name && AppData.users.every(u => u.name !== name)) {
+                const newUser = { id: generateUniqueId(), name: name };
+                AppData.users.push(newUser);
+                AppData.leaveData[newUser.id] = [];
+                newUserNameInput.value = '';
+                saveData();
+                switchUser(newUser.id);
+            } else if (AppData.users.some(u => u.name === name)) {
+                alert('人員名稱不能重複！');
+            }
+        }
+
+        function deleteUser(userId) {
+            if (confirm('確定要刪除此人員及其排假紀錄嗎？')) {
+                AppData.users = AppData.users.filter(u => u.id !== userId);
+                delete AppData.leaveData[userId];
+                if (currentUser && currentUser.id === userId) currentUser = null;
+                if (!currentUser && AppData.users.length > 0) currentUser = AppData.users[0];
+                saveData();
+                loadCalendar(); 
+            }
+        }
+
+        function switchUser(userId) {
+            const user = AppData.users.find(u => u.id === userId);
+            if (user) {
+                currentUser = user;
+                renderUserTags();
+                updateCurrentUserNameDisplay();
+                loadCalendar();
+            }
+        }
+
+        function renderUserTags() {
+            userListContainer.innerHTML = '';
+            totalPeopleCountSpan.innerText = AppData.users.length;
+            
+            AppData.users.forEach(user => {
+                const tag = document.createElement('div');
+                tag.classList.add('user-tag');
+                if (currentUser && currentUser.id === user.id) tag.classList.add('active');
+                
+                tag.innerHTML = `<span>${user.name}</span><button onclick="event.stopPropagation(); deleteUser('${user.id}')">X</button>`;
+                tag.addEventListener('click', () => switchUser(user.id));
+                userListContainer.appendChild(tag);
+            });
+        }
+
+        function updateCurrentUserNameDisplay() {
+            currentUserNameDisplay.innerText = currentUser ? currentUser.name : '請選擇人員';
+        }
+
+        function getCurrentMonthPrefix(dt) {
+            const month = dt.getMonth() + 1;
+            const year = dt.getFullYear();
+            return `${year}-${String(month).padStart(2, '0')}`;
+        }
+
+        function updateStatistics() {
+            const dt = new Date();
+            if (nav !== 0) dt.setMonth(new Date().getMonth() + nav);
+            const prefix = getCurrentMonthPrefix(dt);
+            
+            let totalLeave = 0;
+            let myLeave = 0;
+            
+            AppData.users.forEach(user => {
+                const leaves = AppData.leaveData[user.id] || [];
+                const monthLeaves = leaves.map(normalizeLeaveData).filter(l => l.date.startsWith(prefix));
+                
+                const hours = monthLeaves.reduce((acc, curr) => {
+                    return acc + (curr.type === 'all' ? 1 : 0.5);
+                }, 0);
+
+                totalLeave += hours;
+                if (currentUser && user.id === currentUser.id) {
+                    myLeave = hours;
+                }
+            });
+
+            totalLeaveCountSpan.innerText = totalLeave;
+            myLeaveCountSpan.innerText = myLeave;
+        }
+
+        function clearMyMonthData() {
+            if (!currentUser) return;
+            const dt = new Date();
+            if (nav !== 0) dt.setMonth(new Date().getMonth() + nav);
+            const prefix = getCurrentMonthPrefix(dt);
+
+            if(confirm(`清除 ${currentUser.name} 本月排假？`)) {
+                const leaves = AppData.leaveData[currentUser.id] || [];
+                const newLeaves = leaves.filter(l => {
+                    const norm = normalizeLeaveData(l);
+                    return !norm.date.startsWith(prefix);
+                });
+                
+                AppData.leaveData[currentUser.id] = newLeaves;
+                saveData();
+                loadCalendar();
+            }
+        }
+
+        function resetAllData() {
+            if (confirm('⚠️ 警告：這將清除所有資料！無法復原。')) {
+                localStorage.removeItem(DATA_STORAGE_KEY);
+                location.reload();
+            }
+        }
+
+        function initSystem() {
+            document.getElementById('nextMonth').addEventListener('click', () => { nav++; loadCalendar(); });
+            document.getElementById('prevMonth').addEventListener('click', () => { nav--; loadCalendar(); });
+            document.getElementById('todayBtn').addEventListener('click', () => { 
+                nav = 0; 
+                loadCalendar(); 
+            });
+
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeModal();
+            });
+
+            loadData();
+            renderUserTags();
+            updateCurrentUserNameDisplay();
+            loadCalendar(); 
+        }
+
+        // 啟動檢查
+        checkAuth();
+    </script>
+</body>
+</html>
