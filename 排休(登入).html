@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>商品部-排假系統</title>
+    <title>排假系統</title>
     <style>
         :root {
             --primary-color: #4a90e2;
@@ -602,8 +602,8 @@
                 AppData = JSON.parse(stored);
             } else {
                 AppData.users = [
-                    { id: 'u1', name: '蔡依君' },
-                    { id: 'u2', name: '陳品溱' }
+                    { id: 'u1', name: '測試1' },
+                    { id: 'u2', name: '測試2' }
                 ];
                 AppData.users.forEach(u => AppData.leaveData[u.id] = []);
             }
@@ -944,4 +944,5 @@
         checkAuth();
     </script>
 </body>
+
 </html>
